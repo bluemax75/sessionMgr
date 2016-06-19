@@ -55,7 +55,6 @@ proc hibernateExec(w: PWidget) {.cdecl.} =
   discard os.execShellCmd(hibernateCmd)
   destroy(w)
 
-nim_init()
 
 proc expose_proc(widget: PWidget, event: PEventExpose): gboolean {.cdecl.} =
   let cr: PContext = widget.window.cairo_create()
@@ -67,68 +66,86 @@ proc expose_proc(widget: PWidget, event: PEventExpose): gboolean {.cdecl.} =
   cr.destroy
   result=false
 
-var window = window_new(gtk2.WINDOW_TOPLEVEL)
-window.set_app_paintable(true) # Needed to paint directly on the window instead of using a drawing_area
-window.set_position(gtk2.WIN_POS_CENTER)
-#window.set_resizable(false)
-window.set_decorated(false)
-# Through this event we paint the transparent window
-discard signal_connect(window, "expose-event", SIGNAL_FUNC(expose_proc), nil)
-#window.set_border_width(5)
-# To use compositing we must get rgba colormap from screen
-let screen = window.get_screen()
-let colorm = screen.get_rgba_colormap()
-window.set_colormap(colorm)
+type
+  sessionMgrWindow* = object
+    window: gtk2.PWindow
+    hbox: gtk2.PHBox
+    panel: gtk2.PHButtonBox
+    poweroff_button: gtk2.PButton
+    reboot_button: gtk2.PButton
+    suspend_button: gtk2.PButton
+    hibernate_button: gtk2.PButton
 
-proc image_button_new(fname: string): PButton =
-  ## Helper constructor of button with images
-  var image = image_new_from_file(fname)
-  result = button_new()
-  result.set_relief(RELIEF_NONE)
-  result.set_border_width(0)
-  result.add(image)
+proc newSessionMgrWindow*(): sessionMgrWindow =
+  proc image_button_new(fname: string): PButton =
+    ## Helper constructor of button with images
+    var image = image_new_from_file(fname)
+    result = button_new()
+    result.set_relief(RELIEF_NONE)
+    result.set_border_width(0)
+    result.add(image)
+    
+  result = sessionMgrWindow()
 
-var poweroff_button = image_button_new("system-shutdown.png")
-var reboot_button = image_button_new("system-reboot.png")
-var suspend_button = image_button_new("system-suspend.png")
-var hibernate_button = image_button_new("system-suspend-hibernate.png")
+  result.window = window_new(gtk2.WINDOW_TOPLEVEL)
+  result.window.set_app_paintable(true) # Needed to paint directly on the window instead of using a drawing_area
+  result.window.set_position(gtk2.WIN_POS_CENTER)
+  #window.set_resizable(false)
+  result.window.set_decorated(false)
+  # Through this event we paint the transparent window
+  discard signal_connect(result.window, "expose-event", SIGNAL_FUNC(expose_proc), nil)
+  #window.set_border_width(5)
+  # To use compositing we must get rgba colormap from screen
+  let screen = result.window.get_screen()
+  let colorm = screen.get_rgba_colormap()
+  result.window.set_colormap(colorm)
 
-var panel = hbutton_box_new()
-panel.add(poweroff_button)
-panel.add(reboot_button)
-panel.add(suspend_button)
-panel.add(hibernate_button)
+  result.poweroff_button = image_button_new("data/system-shutdown.png")
+  result.reboot_button = image_button_new("data/system-reboot.png")
+  result.suspend_button = image_button_new("data/system-suspend.png")
+  result.hibernate_button = image_button_new("data/system-suspend-hibernate.png")
 
-var hbox = hbox_new(true, 0)
-hbox.add(vbox_new(true, 0))
-hbox.add(panel)
-hbox.add(vbox_new(true, 0))
+  result.panel = hbutton_box_new()
+  result.panel.add(result.poweroff_button)
+  result.panel.add(result.reboot_button)
+  result.panel.add(result.suspend_button)
+  result.panel.add(result.hibernate_button)
 
-window.add(hbox)
-window.fullscreen()
+  result.hbox = hbox_new(true, 0)
+  result.hbox.add(vbox_new(true, 0))
+  result.hbox.add(result.panel)
+  result.hbox.add(vbox_new(true, 0))
 
-discard signal_connect(window, "destroy",
-                       SIGNAL_FUNC(sessionMgr.destroy), nil)
-discard signal_connect(window, "key_press_event",
-                       SIGNAL_FUNC(sessionMgr.keypressed), nil)
-# Al perder el foco cerrar la ventana
-discard signal_connect_object(window, "focus-out-event",
-                              SIGNAL_FUNC(sessionMgr.destroy), nil)
+  result.window.add(result.hbox)
+  result.window.fullscreen()
 
-discard signal_connect_object(poweroff_button, "clicked",
-                              SIGNAL_FUNC(poweroffExec),
-                              window)
-discard signal_connect_object(reboot_button, "clicked",
-                              SIGNAL_FUNC(rebootExec),
-                              window)
-discard signal_connect_object(suspend_button, "clicked",
-                              SIGNAL_FUNC(suspendExec),
-                              window)
-discard signal_connect_object(hibernate_button, "clicked",
-                              SIGNAL_FUNC(hibernateExec),
-                              window)
+  discard signal_connect(result.window, "destroy",
+                         SIGNAL_FUNC(sessionMgr.destroy), nil)
+  discard signal_connect(result.window, "key_press_event",
+                         SIGNAL_FUNC(sessionMgr.keypressed), nil)
+  # Al perder el foco cerrar la ventana
+  discard signal_connect_object(result.window, "focus-out-event",
+                                SIGNAL_FUNC(sessionMgr.destroy), nil)
 
+  discard signal_connect_object(result.poweroff_button, "clicked",
+                                SIGNAL_FUNC(poweroffExec),
+                                result.window)
+  discard signal_connect_object(result.reboot_button, "clicked",
+                                SIGNAL_FUNC(rebootExec),
+                                result.window)
+  discard signal_connect_object(result.suspend_button, "clicked",
+                                SIGNAL_FUNC(suspendExec),
+                                result.window)
+  discard signal_connect_object(result.hibernate_button, "clicked",
+                                SIGNAL_FUNC(hibernateExec),
+                                result.window)
 
+proc show*(sessionmgr_window: sessionMgrWindow) =
+  show_all(sessionmgr_window.window)
 
-show_all(window)
+nim_init()
+let session_window = newSessionMgrWindow()
+session_window.show()
 main()
+  
+
