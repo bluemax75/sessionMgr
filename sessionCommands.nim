@@ -1,39 +1,44 @@
 import os
 import logging, strutils
 import gtk2
+import tables
 
-const power_api = "dbus_login"
-info("Using [$1] power API" % [power_api])
-when power_api=="systemd":
-    const poweroffCmd = "systemctl poweroff"
-    const rebootCmd = "systemctl reboot"
-    const suspendCmd = "systemctl suspend"
-    const hibernateCmd = "systemctl hibernate"
-elif power_api=="dbus_login":
-    const poweroffCmd = "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 \"org.freedesktop.login1.Manager.PowerOff\" boolean:true"
-    const rebootCmd = "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 \"org.freedesktop.login1.Manager.Reboot\" boolean:true"
-    const suspendCmd = "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 \"org.freedesktop.login1.Manager.Suspend\" boolean:true"
-    const hibernateCmd = "dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 \"org.freedesktop.login1.Manager.Hibernate\" boolean:true"
-else:
-    echo "No valid power API"
-    quit(1)
+var power_api* = "dbus_login"
+
+var systemd_cmds = toTable([("poweroff","systemctl poweroff"),
+      ("reboot", "systemctl reboot"), ("suspend","systemctl suspend"),
+      ("hibernate", "systemctl hibernate")])
+var dbus_cmds = toTable([("poweroff","dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 \"org.freedesktop.login1.Manager.PowerOff\" boolean:true"),
+      ("reboot","dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 \"org.freedesktop.login1.Manager.Reboot\" boolean:true"),
+      ("suspend","dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 \"org.freedesktop.login1.Manager.Suspend\" boolean:true"),
+      ("hibernate","dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 \"org.freedesktop.login1.Manager.Hibernate\" boolean:true")])
+var cmds = toTable([("systemd", systemd_cmds), ("dbus_login", dbus_cmds)])
 
 proc poweroffExec*(w: PWidget) {.cdecl.} =
-  debug("Executing [$1]" % [poweroffCmd])
-  discard os.execShellCmd(poweroffCmd)
+  let cmd = cmds[power_api]["poweroff"]
+  info("Poweroff")
+  debug("Executing [$1]" % [cmd])
+  discard os.execShellCmd(cmd)
   destroy(w)
 
 proc rebootExec*(w: PWidget) {.cdecl.} =
-  debug("Executing [$1]" % [rebootCmd])
-  discard os.execShellCmd(rebootCmd)
+  let cmd = cmds[power_api]["reboot"]
+  info("Reboot")
+  debug("Executing [$1]" % [cmd])
+  discard os.execShellCmd(cmd)
   destroy(w)
 
 proc suspendExec*(w: PWidget) {.cdecl.} =
-  debug("Executing [$1]" % [suspendCmd])
-  discard os.execShellCmd(suspendCmd)
+  let cmd = cmds[power_api]["suspend"]
+  info("Suspend")
+  debug("Executing [$1]" % [cmd])
+  discard os.execShellCmd(cmd)
   destroy(w)
 
 proc hibernateExec*(w: PWidget) {.cdecl.} =
-  discard os.execShellCmd(hibernateCmd)
+  let cmd = cmds[power_api]["hibernate"]
+  info("Hibernate")
+  debug("Executing [$1]" % [cmd])
+  discard os.execShellCmd(cmd)
   destroy(w)
 
