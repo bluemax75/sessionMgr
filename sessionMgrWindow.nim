@@ -1,6 +1,6 @@
 import 
   glib2, gtk2, gdk2, os, cairo
-import logging
+import logging, strutils
 import sessionCommands
 
 # TODO Center buttons
@@ -12,7 +12,7 @@ proc destroy_win(widget: PWidget, data: Pgpointer){.cdecl.} =
   main_quit()
 
 proc keypressed(w: PWidget, event: PEventKey): bool {.cdecl.} =
-  ## If not cursor or enter destroy window
+  ## Destroy window if its not cursor key or enter
   if event.keyval notin [65361, 65363, 65293]:
       destroy(w)
   # To stop event propagation return true
@@ -39,17 +39,19 @@ type
     suspend_button: gtk2.PButton
     hibernate_button: gtk2.PButton
 
-proc newSessionMgrWindow*(): sessionMgrWindow =
+proc newSessionMgrWindow*(power_api, data_dir: string): sessionMgrWindow =
   ## Build session manager window
-  proc image_button_new(fname: string): PButton =
+  proc image_button_new(fname, data_dir: string): PButton =
     ## Helper constructor of button with images
-    var image = image_new_from_file(fname)
+    var image = image_new_from_file(os.joinPath(data_dir, fname))
     result = button_new()
     result.set_relief(RELIEF_NONE)
     result.set_border_width(0)
     result.add(image)
     
   result = sessionMgrWindow()
+  info("Using $1 power API" % [power_api])
+  sessionCommands.power_api = power_api
 
   result.window = window_new(gtk2.WINDOW_TOPLEVEL)
   result.window.set_app_paintable(true) # Needed to paint directly on the window instead of using a drawing_area
@@ -64,10 +66,10 @@ proc newSessionMgrWindow*(): sessionMgrWindow =
   let colorm = screen.get_rgba_colormap()
   result.window.set_colormap(colorm)
 
-  result.poweroff_button = image_button_new("data/system-shutdown.png")
-  result.reboot_button = image_button_new("data/system-reboot.png")
-  result.suspend_button = image_button_new("data/system-suspend.png")
-  result.hibernate_button = image_button_new("data/system-suspend-hibernate.png")
+  result.poweroff_button = image_button_new("data/system-shutdown.png", data_dir)
+  result.reboot_button = image_button_new("data/system-reboot.png", data_dir)
+  result.suspend_button = image_button_new("data/system-suspend.png", data_dir)
+  result.hibernate_button = image_button_new("data/system-suspend-hibernate.png", data_dir)
 
   result.panel = hbutton_box_new()
   result.panel.add(result.poweroff_button)
